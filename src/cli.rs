@@ -1,6 +1,6 @@
-use clap::{Parser, Subcommand, Args,};
+use clap::{Args, Parser, Subcommand, ValueEnum};
 
-#[derive(Parser, Debug,)]
+#[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 pub struct Cli {
     #[command(subcommand)]
@@ -10,40 +10,42 @@ pub struct Cli {
 impl Cli {
     pub fn process(self) {
         match self.operation {
-            Operation::Configure { provider } => {},
-            Operation::Places { action } => {},
-            Operation::Forecast => {},
+            Operation::Configure { provider } => {}
+            Operation::Places { action } => {}
+            Operation::Forecast(args) => {}
         }
     }
 }
 
 // Operation -------------------------------------------------------------------
 
-#[derive(Subcommand, Debug,)]
+#[derive(Subcommand, Debug)]
 enum Operation {
     /// Configure provider and credentials
-    Configure { 
-        #[command(subcommand)] provider: Provider, 
+    Configure {
+        #[command(subcommand)]
+        provider: Provider,
     },
-    
-    /// Save frequently used locations
+
+    /// Manage frequently used locations
     Places {
-        #[command(subcommand)] action: PlacesAction,
+        #[command(subcommand)]
+        action: PlacesAction,
     },
 
     /// Get a weather forecast for the specific location
-    Forecast,
+    Forecast(ForecastArgs),
 }
 
 // Configure -------------------------------------------------------------------
 
-#[derive(Subcommand, Clone, Debug,)]
+#[derive(Subcommand, Clone, Debug)]
 enum Provider {
-    A(ProviderCredentials), 
+    A(ProviderCredentials),
     B(ProviderCredentials),
 }
 
-#[derive(Args, Clone, Debug,)]
+#[derive(Args, Clone, Debug)]
 struct ProviderCredentials {
     #[arg(short, long)]
     credentials: String,
@@ -51,7 +53,7 @@ struct ProviderCredentials {
 
 // Places ----------------------------------------------------------------------
 
-#[derive(Subcommand, Clone, Debug,)]
+#[derive(Subcommand, Clone, Debug)]
 enum PlacesAction {
     /// Get all the saved places
     GetAll,
@@ -63,21 +65,62 @@ enum PlacesAction {
     Remove(Place),
 }
 
-#[derive(Args, Clone, Debug,)]
+#[derive(Args, Clone, Debug)]
 struct Place {
+    /// Tag or name of the place
+    #[command(flatten)]
+    tag: PlaceTag,
+
+    /// Geodetic coordinate
+    #[command(flatten)]
+    coordinates: Coordinates,
+}
+
+#[derive(Args, Clone, Debug,)]
+struct PlaceTag {
     /// Tag or name of the place
     #[arg(short, long)]
     tag: String,
+}
 
-    /// Geodetic latitude of the location.
-    /// Value must be between -90 and 90 degrees including 
+#[derive(Args, Clone, Debug)]
+struct Coordinates {
+    /// Value must be between -90 and 90 degrees including
     #[arg(long = "lat")]
     latitude: f32,
 
-    /// Geodetic longitude of the location. 
-    /// Value must be between -180 and 180 degrees including 
+    /// Geodetic longitude of the location.
+    /// Value must be between -180 and 180 degrees including
     #[arg(long = "long")]
     longitude: f32,
 }
 
 // Forecast --------------------------------------------------------------------
+
+#[derive(Subcommand, Clone, Debug)]
+enum Location {
+    /// Tag of the place saved to frequently used
+    Place(PlaceTag),
+
+    /// Geodetic coordinate
+    Coordinates(Coordinates),
+}
+
+#[derive(Args, Clone, Debug,)]
+struct ForecastArgs {
+    /// Location to obtain weather information for
+    #[command(subcommand)]
+    location: Location,
+
+    /// Time range to get the weather forecast for
+    #[arg(value_enum)]
+    time: ForecastTime,
+}
+
+#[derive(ValueEnum, Clone, Debug,)]
+enum ForecastTime {
+    Now,
+    Today,
+    Tomorrow,
+    Days10,
+}
