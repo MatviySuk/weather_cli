@@ -10,9 +10,9 @@ pub struct Cli {
 impl Cli {
     pub fn process(self) {
         match self.operation {
-            Operation::Configure { provider } => {}
-            Operation::Places { action } => {}
-            Operation::Forecast(args) => {}
+            Operation::Configure { provider } => configure_provider(provider),
+            Operation::Places { action } => manage_places(action),
+            Operation::Forecast(args) => get_forecast(args),
         }
     }
 }
@@ -76,7 +76,7 @@ struct Place {
     coordinates: Coordinates,
 }
 
-#[derive(Args, Clone, Debug,)]
+#[derive(Args, Clone, Debug)]
 struct PlaceTag {
     /// Tag or name of the place
     #[arg(short, long)]
@@ -106,7 +106,7 @@ enum Location {
     Coordinates(Coordinates),
 }
 
-#[derive(Args, Clone, Debug,)]
+#[derive(Args, Clone, Debug)]
 struct ForecastArgs {
     /// Location to obtain weather information for
     #[command(subcommand)]
@@ -117,10 +117,28 @@ struct ForecastArgs {
     time: ForecastTime,
 }
 
-#[derive(ValueEnum, Clone, Debug,)]
+#[derive(ValueEnum, Clone, Debug)]
 enum ForecastTime {
     Now,
     Today,
     Tomorrow,
-    Days10,
+    Days5,
 }
+
+// Functions -------------------------------------------------------------------
+
+fn configure_provider(prv: Provider) {
+    match prv {
+        _ => {}
+    }
+}
+
+fn manage_places(act: PlacesAction) {
+    match act {
+        PlacesAction::GetAll => {}
+        PlacesAction::Set(place) => {}
+        PlacesAction::Remove(place) => {}
+    }
+}
+
+fn get_forecast(args: ForecastArgs) {}
