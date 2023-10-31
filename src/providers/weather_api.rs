@@ -144,14 +144,14 @@ struct Hour {
     uv: f64,
 }
 
-pub struct WeatherApi<'a> {
+pub struct WeatherApi {
     client: Client,
     base_url: Url,
-    key: &'a str,
+    key: String,
 }
 
-impl<'a> WeatherApi<'a> {
-    pub fn new(key: &'a str) -> Self {
+impl WeatherApi {
+    pub fn new(key: String) -> Self {
         let base_url = Url::parse("https://api.weatherapi.com").unwrap();
         let client = reqwest::Client::builder().build().unwrap();
 
@@ -164,7 +164,7 @@ impl<'a> WeatherApi<'a> {
 }
 
 #[async_trait]
-impl<'a> Provider for WeatherApi<'a> {
+impl Provider for WeatherApi {
     async fn get_forecast(&self, coord: weather::Coordinates, time: weather::ForecastTime) {
         let mut url = self.base_url.to_owned();
         url.set_path("/v1/forecast.json");

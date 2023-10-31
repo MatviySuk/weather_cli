@@ -1,3 +1,5 @@
+use std::hash::Hash;
+
 use clap::{Subcommand, Args, ValueEnum};
 use serde_derive::{Serialize, Deserialize};
 
@@ -10,7 +12,7 @@ pub enum Provider {
 #[derive(Deserialize, Serialize, Args, Clone, Debug)]
 pub struct ProviderCredentials {
     #[arg(short, long)]
-    pub credentials: String,
+    pub key: String,
 }
 
 #[derive(Subcommand, Clone, Debug)]
@@ -25,25 +27,39 @@ pub enum PlacesAction {
     Remove(Place),
 }
 
-#[derive(Args, Clone, Debug)]
+#[derive(Deserialize, Serialize, Args, Clone, Debug)]
 pub struct Place {
     /// Tag or name of the place
     #[command(flatten)]
-    tag: PlaceTag,
+    pub tag: PlaceTag,
 
     /// Geodetic coordinate
     #[command(flatten)]
-    coordinates: Coordinates,
+    pub coordinates: Coordinates,
 }
 
-#[derive(Args, Clone, Debug)]
+impl Hash for Place {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.tag.hash(state);
+    }
+}
+
+impl PartialEq for Place {
+    fn eq(&self, other: &Self) -> bool {
+        self.tag == other.tag
+    }
+}
+
+impl Eq for Place { }
+
+#[derive(Deserialize, Serialize, PartialEq, Hash, Eq, Args, Clone, Debug)]
 pub struct PlaceTag {
     /// Tag or name of the place
     #[arg(short, long)]
-    tag: String,
+    pub tag: String,
 }
 
-#[derive(Args, Clone, Debug)]
+#[derive(Deserialize, Serialize, Args, Clone, Debug)]
 pub struct Coordinates {
     /// Value must be between -90 and 90 degrees including
     #[arg(long = "lat")]

@@ -122,14 +122,14 @@ struct WeatherData {
     daily: Vec<DailyForecast>,
 }
 
-pub struct OpenWeather<'a> {
+pub struct OpenWeather {
     client: Client,
     base_url: Url,
-    app_id: &'a str,
+    app_id: String,
 }
 
-impl<'a> OpenWeather<'a> {
-    pub fn new(app_id: &'a str) -> Self {
+impl OpenWeather {
+    pub fn new(app_id: String) -> Self {
         let base_url = Url::parse("https://api.openweathermap.org").unwrap();
         let client = reqwest::Client::builder().build().unwrap();
 
@@ -142,7 +142,7 @@ impl<'a> OpenWeather<'a> {
 }
 
 #[async_trait]
-impl<'a> Provider for OpenWeather<'a> {
+impl Provider for OpenWeather {
     async fn get_forecast(&self, coord: weather::Coordinates, time: weather::ForecastTime) {
         let mut url = self.base_url.to_owned();
         url.set_path("/data/3.0/onecall");

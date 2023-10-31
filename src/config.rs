@@ -1,6 +1,8 @@
+use std::collections::HashSet;
+
 use confy::{load, store};
 use serde_derive::{Deserialize, Serialize};
-use crate::weather::{Provider, ProviderCredentials};
+use crate::weather::{Provider, ProviderCredentials, Place};
 
 const APP_NAME: &'static str = "weather";
 const CONFIG_NAME: &'static str = "weather_config";
@@ -8,12 +10,12 @@ const CONFIG_NAME: &'static str = "weather_config";
 #[derive(Deserialize, Serialize, Debug)]
 pub struct WeatherConfig {
     pub provider: Option<Provider>,
-    pub places: Vec<String>,
+    pub places: HashSet<Place>,
 }
 
 impl Default for WeatherConfig {
     fn default() -> Self {
-        WeatherConfig { provider: None, places: vec![] }
+        WeatherConfig { provider: None, places: HashSet::new() }
     }
 }
 
