@@ -1,9 +1,11 @@
 use crate::weather;
 
-use serde_derive::Deserialize;
 use async_trait::async_trait;
 use reqwest::{self, Client};
+use serde_derive::Deserialize;
 use url::Url;
+
+use chrono::{self, DateTime, FixedOffset};
 
 use super::Provider;
 
@@ -122,6 +124,48 @@ struct WeatherData {
     daily: Vec<DailyForecast>,
 }
 
+impl WeatherData {
+    pub fn parse_to_current(self, unit: weather::UnitType) -> weather::CurrentWeather {
+        let offset = FixedOffset::east_opt(self.timezone_offset as i32).unwrap();
+        let mut sunrise: Option<String> = None;
+        let mut sunset: Option<String> = None;
+
+        if let Some(sr) = self.current.sunrise {
+            let sunrise_dt = DateTime::from_timestamp(sr as i64, 0).unwrap().with_timezone(&offset);
+            sunrise = Some(format!("{}", sunrise_dt.format("%H:%M")));
+        }
+
+        if let Some(ss) = self.current.sunset {
+            let sunset_dt = DateTime::from_timestamp(ss as i64, 0).unwrap().with_timezone(&offset);
+            sunset = Some(format!("{}", sunset_dt.format("%H:%M")));
+        }
+        
+        let precip = self.current.rain.map(|r| r.mm_h);
+        let condition = self
+            .current
+            .weather
+            .first()
+            .map_or("No data".to_string(), |w| w.description.clone());
+
+        weather::CurrentWeather {
+            temp: self.current.temp,
+            feels_like: self.current.feels_like,
+            visibility: self.current.visibility / 1000.0,
+            clouds: self.current.clouds,
+            humidity: self.current.humidity,
+            pressure: self.current.pressure,
+            wind_speed: self.current.wind_speed,
+            wind_deg: self.current.wind_deg,
+            uvi: self.current.uvi,
+            sunrise,
+            sunset,
+            condition,
+            precip,
+            unit,
+        }
+    }
+}
+
 pub struct OpenWeather {
     client: Client,
     base_url: Url,
@@ -143,7 +187,12 @@ impl OpenWeather {
 
 #[async_trait]
 impl Provider for OpenWeather {
-    async fn get_forecast(&self, coord: weather::Coordinates, time: weather::ForecastTime) {
+    async fn get_forecast(
+        &self,
+        coord: weather::Coordinates,
+        time: weather::ForecastTime,
+        unit: weather::UnitType,
+    ) -> weather::Weather {
         let mut url = self.base_url.to_owned();
         url.set_path("/data/3.0/onecall");
 
@@ -152,9 +201,11 @@ impl Provider for OpenWeather {
             ("lon", coord.lon.to_string()),
             ("appid", self.app_id.to_owned()),
             ("exclude", "minutely".to_string()),
+            ("units", unit.to_string().to_lowercase()),
         ];
-        
-        let weather_data = self.client
+
+        let mut weather_data = self
+            .client
             .get(url)
             .query(&query)
             .send()
@@ -164,6 +215,15 @@ impl Provider for OpenWeather {
             .await
             .unwrap();
 
-       println!("OpenWeather data: {:?}", weather_data); 
+        match time {
+            weather::ForecastTime::Now => {
+                weather::Weather::Current(
+                    weather_data.parse_to_current(unit)
+                )
+            }
+            weather::ForecastTime::Hours24
+            | weather::ForecastTime::Days3
+            | weather::ForecastTime::Days5 => weather::Weather::Daily(vec![]),
+        }
     }
 }

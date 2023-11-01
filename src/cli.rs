@@ -48,14 +48,20 @@ struct ForecastArgs {
     location: Location,
 
     /// Time range to get the weather forecast for
-    #[arg(value_enum)]
+    #[arg(value_enum, default_value_t = ForecastTime::Now)]
     time: ForecastTime,
+
+    /// Units type
+    #[arg(value_enum, default_value_t = UnitType::Metric)]
+    unit: UnitType,
 }
 
 fn configure_provider(prv: Provider) {
     let mut config = WeatherConfig::get();
-    config.provider = Some(prv);
+    config.provider = Some(prv.clone());
     config.save();
+
+    println!("Provider {} successfully configured!", prv);
 }
 
 fn manage_places(act: PlacesAction) {
@@ -69,19 +75,25 @@ fn manage_places(act: PlacesAction) {
 
             config.places
         }
-        PlacesAction::Remove(place) => {
-            config.places.remove(&place);
+        PlacesAction::Remove(tag) => {
+            let remove_place = config.place_by_tag(&tag).unwrap();
+            config.places.remove(&remove_place);
             config.save();
 
             config.places
         }
     };
+
+    println!("Places: ");
+    for place in places {
+        println!("{}", place);
+    }
 }
 
 async fn get_forecast(args: ForecastArgs) {
     let config = WeatherConfig::get();
 
-    if let Some(prv_type) = config.provider {
+    if let Some(prv_type) = &config.provider {
         let provider: Box<dyn providers::Provider> = match prv_type {
             Provider::OpenWeather(creds) => {
                 Box::new(open_weather::OpenWeather::new(creds.key.to_owned()))
@@ -93,15 +105,22 @@ async fn get_forecast(args: ForecastArgs) {
 
         let coords = match args.location {
             Location::Coordinates(coords) => Some(coords),
-            Location::Place(place) => config
-                .places
-                .iter()
-                .find(|p| p.tag == place)
-                .map(|p| p.coordinates.to_owned()),
+            Location::Place(tag) => config.place_by_tag(&tag).map(|p| p.coordinates),
         };
 
         if let Some(coords) = coords {
-            provider.get_forecast(coords, args.time).await;
+            let weather = provider.get_forecast(coords, args.time, args.unit).await;
+            println!("Weather provider: {}", prv_type);
+            match weather {
+                Weather::Current(current) => {
+                    println!("{}", current);
+                }
+                Weather::Daily(days) => {
+                    for day in days {
+                        println!("{}", day);
+                    }
+                }
+            }
         }
     }
 }

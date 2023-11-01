@@ -14,7 +14,7 @@ pub mod config;
 
 #[tokio::main]
 async fn main() {
-    // Cli::parse();
+    Cli::parse().process().await;
 
     // let api: Vec<Box<dyn Provider>> = vec![
         // Box::new(open_weather::OpenWeather::new(
