@@ -5,6 +5,8 @@ use async_trait::async_trait;
 use reqwest::{self, Client};
 use url::Url;
 
+use chrono;
+
 use super::Provider;
 
 #[derive(Deserialize, Debug)]
@@ -16,12 +18,14 @@ pub struct WeatherData {
 
 impl WeatherData {
     pub fn parse_to_current(self, unit: weather::UnitType) -> weather::CurrentWeather {
-        let (sunset, sunrise) = self.forecast.forecastday.first().map_or((None, None), |d| {
-            (
-                Some(d.astro.sunrise.to_owned()),
-                Some(d.astro.sunset.to_owned()),
-            )
-        });
+        let (sunset, sunrise) = self
+            .forecast
+            .forecastday
+            .into_iter()
+            .next()
+            .map_or((None, None), |d| {
+                (Some(d.astro.sunrise), Some(d.astro.sunset))
+            });
 
         weather::CurrentWeather {
             temp: match unit {
@@ -40,8 +44,8 @@ impl WeatherData {
             humidity: self.current.humidity,
             pressure: self.current.pressure_mb,
             wind_speed: match unit {
-                weather::UnitType::Metric => self.current.vis_km / 3.6,
-                weather::UnitType::Imperial => self.current.vis_miles,
+                weather::UnitType::Metric => self.current.wind_kph / 3.6,
+                weather::UnitType::Imperial => self.current.wind_mph,
             },
             wind_deg: self.current.wind_degree as f32,
             uvi: self.current.uv,
@@ -54,6 +58,93 @@ impl WeatherData {
             }),
             unit,
         }
+    }
+
+    pub fn parse_to_today(self, unit: weather::UnitType) -> Vec<weather::HourWeather> {
+        let current_utc = chrono::Utc::now().timestamp();
+
+        self.forecast
+            .forecastday
+            .into_iter()
+            .flat_map(|d| d.hour)
+            // Get current hour and next 23
+            .filter(|h| h.time_epoch - current_utc > -3600)
+            .take(24)
+            .map(|h| weather::HourWeather {
+                time: h.time.clone(),
+                temp: match unit {
+                    weather::UnitType::Metric => h.temp_c,
+                    weather::UnitType::Imperial => h.temp_f,
+                },
+                feels_like: match unit {
+                    weather::UnitType::Metric => h.feelslike_c,
+                    weather::UnitType::Imperial => h.feelslike_f,
+                },
+                visibility: match unit {
+                    weather::UnitType::Metric => h.vis_km,
+                    weather::UnitType::Imperial => h.vis_miles,
+                },
+                clouds: h.cloud,
+                humidity: h.humidity,
+                pressure: h.pressure_mb,
+                wind_speed: match unit {
+                    weather::UnitType::Metric => h.wind_kph / 3.6,
+                    weather::UnitType::Imperial => h.wind_mph,
+                },
+                wind_deg: h.wind_degree as f32,
+                uvi: h.uv,
+                condition: h.condition.text,
+                precip: Some(match unit {
+                    weather::UnitType::Metric => h.precip_mm,
+                    weather::UnitType::Imperial => h.precip_in,
+                }),
+                unit: unit.to_owned(),
+            })
+            .collect::<Vec<weather::HourWeather>>()
+    }
+
+    pub fn parse_to_days(
+        self,
+        n_days: usize,
+        unit: weather::UnitType,
+    ) -> Vec<weather::DailyWeather> {
+        self.forecast
+            .forecastday
+            .into_iter()
+            .take(n_days)
+            .map(|d| weather::DailyWeather {
+                date: d.date, 
+                min_temp: match unit {
+                    weather::UnitType::Metric => d.day.mintemp_c,
+                    weather::UnitType::Imperial => d.day.mintemp_f,
+                },
+                max_temp: match unit {
+                    weather::UnitType::Metric => d.day.maxtemp_c,
+                    weather::UnitType::Imperial => d.day.maxtemp_f,
+                },
+                avg_temp: None,
+                visibility: None,
+                humidity: d.day.avghumidity,
+                pressure: None,
+                wind_speed: match unit {
+                    weather::UnitType::Metric => d.day.maxwind_kph / 3.6,
+                    weather::UnitType::Imperial => d.day.maxwind_mph,
+                },
+                uvi: d.day.uv,
+                condition: d.day.condition.text,
+                precip: Some(match unit {
+                    weather::UnitType::Metric => d.day.totalprecip_mm,
+                    weather::UnitType::Imperial => d.day.totalprecip_in,
+                }),
+                clouds: None, 
+                sunrise: Some(d.astro.sunrise),
+                sunset: Some(d.astro.sunset),
+                moonrise: Some(d.astro.moonrise),
+                moonset: Some(d.astro.moonset),
+                moon_phase: Some(d.astro.moon_phase),
+                unit: unit.clone(),
+            })
+            .collect::<Vec<weather::DailyWeather>>()
     }
 }
 
@@ -147,12 +238,12 @@ pub struct Astro {
     moonrise: String,
     moonset: String,
     moon_phase: String,
-    moon_illumination: u32,
+    moon_illumination: f32,
 }
 
 #[derive(Deserialize, Debug)]
 pub struct Hour {
-    time_epoch: u32,
+    time_epoch: i64,
     time: String,
     temp_c: f32,
     temp_f: f32,
@@ -239,16 +330,23 @@ impl Provider for WeatherApi {
             weather::ForecastTime::Now => {
                 weather::Weather::Current(weather_data.parse_to_current(unit))
             }
-            weather::ForecastTime::Hours24
-            | weather::ForecastTime::Days3
-            | weather::ForecastTime::Days5 => weather::Weather::Daily(vec![]),
+            weather::ForecastTime::Hours24 => {
+                weather::Weather::Today(weather_data.parse_to_today(unit))
+            }
+            weather::ForecastTime::Days3 => {
+                weather::Weather::Daily(weather_data.parse_to_days(3, unit))
+            },
+            weather::ForecastTime::Days5 => {
+                weather::Weather::Daily(weather_data.parse_to_days(5, unit))
+            }
         }
     }
 }
 
 fn parse_forecast_time(time: &weather::ForecastTime) -> usize {
     match time {
-        weather::ForecastTime::Now | weather::ForecastTime::Hours24 => 1,
+        weather::ForecastTime::Now => 1,
+        weather::ForecastTime::Hours24 => 2,
         weather::ForecastTime::Days3 => 3,
         weather::ForecastTime::Days5 => 5,
     }

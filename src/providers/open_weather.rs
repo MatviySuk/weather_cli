@@ -11,9 +11,9 @@ use super::Provider;
 
 #[derive(Deserialize, Debug)]
 struct CurrentWeather {
-    dt: u32,
-    sunrise: Option<u32>,
-    sunset: Option<u32>,
+    dt: i64,
+    sunrise: Option<i64>,
+    sunset: Option<i64>,
     temp: f32,
     feels_like: f32,
     pressure: f32,
@@ -52,7 +52,7 @@ struct WeatherCondition {
 
 #[derive(Deserialize, Debug)]
 struct HourlyForecast {
-    dt: u32,
+    dt: i64,
     temp: f32,
     feels_like: f32,
     pressure: f32,
@@ -72,11 +72,11 @@ struct HourlyForecast {
 
 #[derive(Deserialize, Debug)]
 struct DailyForecast {
-    dt: u32,
-    sunrise: Option<u32>,
-    sunset: Option<u32>,
-    moonrise: Option<u32>,
-    moonset: Option<u32>,
+    dt: i64,
+    sunrise: Option<i64>,
+    sunset: Option<i64>,
+    moonrise: Option<i64>,
+    moonset: Option<i64>,
     moon_phase: f32,
     summary: String,
     temp: DailyTemperature,
@@ -127,25 +127,14 @@ struct WeatherData {
 impl WeatherData {
     pub fn parse_to_current(self, unit: weather::UnitType) -> weather::CurrentWeather {
         let offset = FixedOffset::east_opt(self.timezone_offset as i32).unwrap();
-        let mut sunrise: Option<String> = None;
-        let mut sunset: Option<String> = None;
 
-        if let Some(sr) = self.current.sunrise {
-            let sunrise_dt = DateTime::from_timestamp(sr as i64, 0).unwrap().with_timezone(&offset);
-            sunrise = Some(format!("{}", sunrise_dt.format("%H:%M")));
-        }
-
-        if let Some(ss) = self.current.sunset {
-            let sunset_dt = DateTime::from_timestamp(ss as i64, 0).unwrap().with_timezone(&offset);
-            sunset = Some(format!("{}", sunset_dt.format("%H:%M")));
-        }
-        
         let precip = self.current.rain.map(|r| r.mm_h);
         let condition = self
             .current
             .weather
-            .first()
-            .map_or("No data".to_string(), |w| w.description.clone());
+            .into_iter()
+            .next()
+            .map_or("No data".to_string(), |w| w.description);
 
         weather::CurrentWeather {
             temp: self.current.temp,
@@ -157,12 +146,86 @@ impl WeatherData {
             wind_speed: self.current.wind_speed,
             wind_deg: self.current.wind_deg,
             uvi: self.current.uvi,
-            sunrise,
-            sunset,
+            sunrise: datetime_to_str(self.current.sunrise, &offset, "%H:%M"),
+            sunset: datetime_to_str(self.current.sunset, &offset, "%H:%M"),
             condition,
             precip,
             unit,
         }
+    }
+
+    pub fn parse_to_today(self, unit: weather::UnitType) -> Vec<weather::HourWeather> {
+        let offset = FixedOffset::east_opt(self.timezone_offset as i32).unwrap();
+
+        self.hourly
+            .into_iter()
+            .take(24)
+            .map(|h| {
+                let precip = h.rain.map(|r| r.mm_h);
+                let condition = h
+                    .weather
+                    .into_iter()
+                    .next()
+                    .map_or("No data".to_string(), |w| w.description);
+
+                weather::HourWeather {
+                    time: datetime_to_str(Some(h.dt), &offset, "%Y-%m-%d %H:%M").unwrap(),
+                    temp: h.temp,
+                    feels_like: h.feels_like,
+                    visibility: h.visibility / 1000.0,
+                    clouds: h.clouds,
+                    humidity: h.humidity,
+                    pressure: h.pressure,
+                    wind_speed: h.wind_speed,
+                    wind_deg: h.wind_deg,
+                    uvi: h.uvi,
+                    condition,
+                    precip,
+                    unit: unit.clone(),
+                }
+            })
+            .collect::<Vec<weather::HourWeather>>()
+    }
+
+    pub fn parse_to_days(
+        self,
+        n_days: usize,
+        unit: weather::UnitType,
+    ) -> Vec<weather::DailyWeather> {
+        let offset = FixedOffset::east_opt(self.timezone_offset as i32).unwrap();
+
+        self.daily
+            .into_iter()
+            .take(n_days)
+            .map(|d| {
+                let condition = d
+                    .weather
+                    .into_iter()
+                    .next()
+                    .map_or("No data".to_string(), |w| w.description);
+
+                weather::DailyWeather {
+                    date: datetime_to_str(Some(d.dt), &offset, "%Y-%m-%d").unwrap(),
+                    min_temp: d.temp.min,
+                    max_temp: d.temp.max,
+                    avg_temp: None,
+                    visibility: None,
+                    humidity: d.humidity,
+                    pressure: Some(d.pressure),
+                    wind_speed: d.wind_speed,
+                    uvi: d.uvi,
+                    condition,
+                    precip: d.rain,
+                    clouds: Some(d.clouds),
+                    sunrise: datetime_to_str(d.sunrise, &offset, "%H:%M"),
+                    sunset: datetime_to_str(d.sunset, &offset, "%H:%M"),
+                    moonrise: datetime_to_str(d.moonrise, &offset, "%H:%M"),
+                    moonset: datetime_to_str(d.moonset, &offset, "%H:%M"),
+                    moon_phase: Some(format!("{:.2}", d.moon_phase)),
+                    unit: unit.clone(),
+                }
+            })
+            .collect::<Vec<weather::DailyWeather>>()
     }
 }
 
@@ -204,7 +267,7 @@ impl Provider for OpenWeather {
             ("units", unit.to_string().to_lowercase()),
         ];
 
-        let mut weather_data = self
+        let weather_data = self
             .client
             .get(url)
             .query(&query)
@@ -217,13 +280,29 @@ impl Provider for OpenWeather {
 
         match time {
             weather::ForecastTime::Now => {
-                weather::Weather::Current(
-                    weather_data.parse_to_current(unit)
-                )
+                weather::Weather::Current(weather_data.parse_to_current(unit))
             }
-            weather::ForecastTime::Hours24
-            | weather::ForecastTime::Days3
-            | weather::ForecastTime::Days5 => weather::Weather::Daily(vec![]),
+            weather::ForecastTime::Hours24 => {
+                weather::Weather::Today(weather_data.parse_to_today(unit))
+            }
+            weather::ForecastTime::Days3 => {
+                weather::Weather::Daily(weather_data.parse_to_days(3, unit))
+            }
+            weather::ForecastTime::Days5 => {
+                weather::Weather::Daily(weather_data.parse_to_days(5, unit))
+            }
         }
     }
+}
+
+fn datetime_to_str<'a>(dt: Option<i64>, offset: &FixedOffset, fmt: &'a str) -> Option<String> {
+    dt.map_or(None, |dt| {
+        Some(
+            DateTime::from_timestamp(dt, 0)
+                .unwrap_or_default()
+                .with_timezone(offset)
+                .format(fmt)
+                .to_string(),
+        )
+    })
 }
