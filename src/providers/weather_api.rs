@@ -1,4 +1,4 @@
-use crate::weather::{self};
+use crate::{weather, Result};
 use serde_derive::Deserialize;
 
 use async_trait::async_trait;
@@ -238,15 +238,15 @@ pub struct WeatherApi {
 }
 
 impl WeatherApi {
-    pub fn new(key: String) -> Self {
-        let base_url = Url::parse("https://api.weatherapi.com").unwrap();
-        let client = reqwest::Client::builder().build().unwrap();
+    pub fn new(key: String) -> Result<Self> {
+        let base_url = Url::parse("https://api.weatherapi.com")?;
+        let client = reqwest::Client::builder().build()?;
 
-        WeatherApi {
+        Ok(WeatherApi {
             client,
             base_url,
             key,
-        }
+        })
     }
 }
 
@@ -257,7 +257,7 @@ impl Provider for WeatherApi {
         coord: weather::Coordinates,
         time: weather::ForecastTime,
         unit: weather::UnitType,
-    ) -> weather::Weather {
+    ) -> Result<weather::Weather> {
         let mut url = self.base_url.to_owned();
         url.set_path("/v1/forecast.json");
 
@@ -273,13 +273,11 @@ impl Provider for WeatherApi {
             .get(url)
             .query(&query)
             .send()
-            .await
-            .unwrap()
+            .await?
             .json::<WeatherData>()
-            .await
-            .unwrap();
+            .await?;
 
-        match time {
+        Ok(match time {
             weather::ForecastTime::Now => {
                 weather::Weather::Current(weather_data.parse_to_current(unit))
             }
@@ -292,7 +290,7 @@ impl Provider for WeatherApi {
             weather::ForecastTime::Days5 => {
                 weather::Weather::Daily(weather_data.parse_to_days(5, unit))
             }
-        }
+        })
     }
 }
 

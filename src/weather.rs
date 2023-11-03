@@ -1,6 +1,7 @@
 use core::fmt;
 use std::hash::Hash;
 
+use crate::Result;
 use clap::{Args, Subcommand, ValueEnum};
 use serde_derive::{Deserialize, Serialize};
 
@@ -277,14 +278,33 @@ pub struct PlaceTag {
 
 #[derive(Deserialize, Serialize, Args, Clone, Debug)]
 pub struct Coordinates {
-    /// Value must be between -90 and 90 degrees including
+    /// Geodetic latitude of the location.
+    /// Latitude must be between -90 and 90 degrees including
     #[arg(long = "lat")]
     pub lat: f32,
 
     /// Geodetic longitude of the location.
-    /// Value must be between -180 and 180 degrees including
+    /// Longitude must be between -180 and 180 degrees including
     #[arg(long = "lon")]
     pub lon: f32,
+}
+
+impl Coordinates {
+    pub fn validate(&self) -> Result<()> {
+        if !(-90.0f32..=90.0).contains(&self.lat) {
+            return Err(crate::errors::AppError::Coordinates(
+                crate::errors::CoordinatesError::Latitude(self.lat),
+            ));
+        }
+
+        if !(-180.0f32..=180.0).contains(&self.lon) {
+            return Err(crate::errors::AppError::Coordinates(
+                crate::errors::CoordinatesError::Longitude(self.lon),
+            ));
+        }
+
+        Ok(())
+    }
 }
 
 #[derive(Subcommand, Clone, Debug)]

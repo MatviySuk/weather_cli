@@ -1,4 +1,7 @@
-use crate::weather::{self, Coordinates, ForecastTime, UnitType};
+use crate::{
+    weather::{self, Coordinates, ForecastTime, UnitType},
+    Result,
+};
 use async_trait::async_trait;
 
 pub mod open_weather;
@@ -11,5 +14,5 @@ pub trait Provider {
         coord: Coordinates,
         time: ForecastTime,
         unit: UnitType,
-    ) -> weather::Weather;
+    ) -> Result<weather::Weather>;
 }

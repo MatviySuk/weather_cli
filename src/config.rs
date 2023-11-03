@@ -1,6 +1,9 @@
 use std::collections::HashSet;
 
-use crate::weather::{Place, PlaceTag, Provider};
+use crate::{
+    weather::{Place, PlaceTag, Provider},
+    Result,
+};
 use confy::{load, store};
 use serde_derive::{Deserialize, Serialize};
 
@@ -14,12 +17,12 @@ pub struct WeatherConfig {
 }
 
 impl WeatherConfig {
-    pub fn get() -> Self {
-        load(APP_NAME, CONFIG_NAME).unwrap()
+    pub fn get() -> Result<Self> {
+        Ok(load(APP_NAME, CONFIG_NAME)?)
     }
 
-    pub fn save(&self) {
-        store(APP_NAME, CONFIG_NAME, self).unwrap();
+    pub fn save(&self) -> Result<()> {
+        Ok(store(APP_NAME, CONFIG_NAME, self)?)
     }
 
     pub fn place_by_tag(&self, tag: &PlaceTag) -> Option<Place> {

@@ -1,4 +1,4 @@
-use crate::weather;
+use crate::{errors::AppError, weather, Result};
 
 use async_trait::async_trait;
 use reqwest::{self, Client};
@@ -86,8 +86,8 @@ struct WeatherData {
 }
 
 impl WeatherData {
-    pub fn parse_to_current(self, unit: weather::UnitType) -> weather::CurrentWeather {
-        let offset = FixedOffset::east_opt(self.timezone_offset as i32).unwrap();
+    pub fn parse_to_current(self, unit: weather::UnitType) -> Result<weather::CurrentWeather> {
+        let offset = FixedOffset::east_opt(self.timezone_offset as i32);
 
         let precip = self.current.rain.map(|r| r.mm_h);
         let condition = self
@@ -97,7 +97,7 @@ impl WeatherData {
             .next()
             .map_or("No data".to_string(), |w| w.description);
 
-        weather::CurrentWeather {
+        Ok(weather::CurrentWeather {
             temp: self.current.temp,
             feels_like: self.current.feels_like,
             visibility: self.current.visibility / 1000.0,
@@ -107,16 +107,24 @@ impl WeatherData {
             wind_speed: self.current.wind_speed,
             wind_deg: self.current.wind_deg,
             uvi: self.current.uvi,
-            sunrise: datetime_to_str(self.current.sunrise, &offset, "%H:%M"),
-            sunset: datetime_to_str(self.current.sunset, &offset, "%H:%M"),
+            sunrise: Some(datetime_to_str(
+                self.current.sunrise,
+                offset.as_ref(),
+                "%H:%M",
+            )?),
+            sunset: Some(datetime_to_str(
+                self.current.sunset,
+                offset.as_ref(),
+                "%H:%M",
+            )?),
             condition,
             precip,
             unit,
-        }
+        })
     }
 
-    pub fn parse_to_today(self, unit: weather::UnitType) -> Vec<weather::HourWeather> {
-        let offset = FixedOffset::east_opt(self.timezone_offset as i32).unwrap();
+    pub fn parse_to_today(self, unit: weather::UnitType) -> Result<Vec<weather::HourWeather>> {
+        let offset = FixedOffset::east_opt(self.timezone_offset as i32);
 
         self.hourly
             .into_iter()
@@ -129,8 +137,8 @@ impl WeatherData {
                     .next()
                     .map_or("No data".to_string(), |w| w.description);
 
-                weather::HourWeather {
-                    time: datetime_to_str(Some(h.dt), &offset, "%Y-%m-%d %H:%M").unwrap(),
+                Ok(weather::HourWeather {
+                    time: datetime_to_str(Some(h.dt), offset.as_ref(), "%Y-%m-%d %H:%M")?,
                     temp: h.temp,
                     feels_like: h.feels_like,
                     visibility: h.visibility / 1000.0,
@@ -143,17 +151,17 @@ impl WeatherData {
                     condition,
                     precip,
                     unit: unit.clone(),
-                }
+                })
             })
-            .collect::<Vec<weather::HourWeather>>()
+            .collect::<Result<Vec<weather::HourWeather>>>()
     }
 
     pub fn parse_to_days(
         self,
         n_days: usize,
         unit: weather::UnitType,
-    ) -> Vec<weather::DailyWeather> {
-        let offset = FixedOffset::east_opt(self.timezone_offset as i32).unwrap();
+    ) -> Result<Vec<weather::DailyWeather>> {
+        let offset = FixedOffset::east_opt(self.timezone_offset as i32);
 
         self.daily
             .into_iter()
@@ -165,8 +173,8 @@ impl WeatherData {
                     .next()
                     .map_or("No data".to_string(), |w| w.description);
 
-                weather::DailyWeather {
-                    date: datetime_to_str(Some(d.dt), &offset, "%Y-%m-%d").unwrap(),
+                Ok(weather::DailyWeather {
+                    date: datetime_to_str(Some(d.dt), offset.as_ref(), "%Y-%m-%d")?,
                     min_temp: d.temp.min,
                     max_temp: d.temp.max,
                     avg_temp: None,
@@ -178,15 +186,15 @@ impl WeatherData {
                     condition,
                     precip: d.rain,
                     clouds: Some(d.clouds),
-                    sunrise: datetime_to_str(d.sunrise, &offset, "%H:%M"),
-                    sunset: datetime_to_str(d.sunset, &offset, "%H:%M"),
-                    moonrise: datetime_to_str(d.moonrise, &offset, "%H:%M"),
-                    moonset: datetime_to_str(d.moonset, &offset, "%H:%M"),
+                    sunrise: Some(datetime_to_str(d.sunrise, offset.as_ref(), "%H:%M")?),
+                    sunset: Some(datetime_to_str(d.sunset, offset.as_ref(), "%H:%M")?),
+                    moonrise: Some(datetime_to_str(d.moonrise, offset.as_ref(), "%H:%M")?),
+                    moonset: Some(datetime_to_str(d.moonset, offset.as_ref(), "%H:%M")?),
                     moon_phase: Some(format!("{:.2}", d.moon_phase)),
                     unit: unit.clone(),
-                }
+                })
             })
-            .collect::<Vec<weather::DailyWeather>>()
+            .collect::<Result<Vec<weather::DailyWeather>>>()
     }
 }
 
@@ -197,15 +205,15 @@ pub struct OpenWeather {
 }
 
 impl OpenWeather {
-    pub fn new(app_id: String) -> Self {
-        let base_url = Url::parse("https://api.openweathermap.org").unwrap();
-        let client = reqwest::Client::builder().build().unwrap();
+    pub fn new(app_id: String) -> Result<Self> {
+        let base_url = Url::parse("https://api.openweathermap.org")?;
+        let client = reqwest::Client::builder().build()?;
 
-        OpenWeather {
+        Ok(OpenWeather {
             client,
             base_url,
             app_id,
-        }
+        })
     }
 }
 
@@ -216,7 +224,7 @@ impl Provider for OpenWeather {
         coord: weather::Coordinates,
         time: weather::ForecastTime,
         unit: weather::UnitType,
-    ) -> weather::Weather {
+    ) -> Result<weather::Weather> {
         let mut url = self.base_url.to_owned();
         url.set_path("/data/3.0/onecall");
 
@@ -233,35 +241,41 @@ impl Provider for OpenWeather {
             .get(url)
             .query(&query)
             .send()
-            .await
-            .unwrap()
+            .await?
             .json::<WeatherData>()
-            .await
-            .unwrap();
+            .await?;
 
-        match time {
+        Ok(match time {
             weather::ForecastTime::Now => {
-                weather::Weather::Current(weather_data.parse_to_current(unit))
+                weather::Weather::Current(weather_data.parse_to_current(unit)?)
             }
             weather::ForecastTime::Hours24 => {
-                weather::Weather::Today(weather_data.parse_to_today(unit))
+                weather::Weather::Today(weather_data.parse_to_today(unit)?)
             }
             weather::ForecastTime::Days3 => {
-                weather::Weather::Daily(weather_data.parse_to_days(3, unit))
+                weather::Weather::Daily(weather_data.parse_to_days(3, unit)?)
             }
             weather::ForecastTime::Days5 => {
-                weather::Weather::Daily(weather_data.parse_to_days(5, unit))
+                weather::Weather::Daily(weather_data.parse_to_days(5, unit)?)
             }
-        }
+        })
     }
 }
 
-fn datetime_to_str(dt: Option<i64>, offset: &FixedOffset, fmt: &str) -> Option<String> {
-    dt.map(|dt| {
-        DateTime::from_timestamp(dt, 0)
-            .unwrap_or_default()
-            .with_timezone(offset)
-            .format(fmt)
-            .to_string()
-    })
+fn datetime_to_str(dt: Option<i64>, offset: Option<&FixedOffset>, fmt: &str) -> Result<String> {
+    let datetime = dt.ok_or(AppError::TimeParse(
+        "Failed to get UTC timestamp".to_string(),
+    ))?;
+    let offset = offset.ok_or(AppError::TimeParse(
+        "Failed to parse provided UTC offset".to_string(),
+    ))?;
+
+    Ok(DateTime::from_timestamp(datetime, 0)
+        .ok_or(AppError::TimeParse(format!(
+            "Failed to parse provided timestamp: {} to DateTime.",
+            datetime
+        )))?
+        .with_timezone(offset)
+        .format(fmt)
+        .to_string())
 }

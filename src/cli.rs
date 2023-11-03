@@ -4,6 +4,7 @@ use crate::{
     config::WeatherConfig,
     providers::{self, open_weather, weather_api},
     weather::*,
+    Result,
 };
 
 #[derive(Parser, Debug)]
@@ -14,7 +15,7 @@ pub struct Cli {
 }
 
 impl Cli {
-    pub async fn process(self) {
+    pub async fn process(self) -> Result<()> {
         match self.operation {
             Operation::Configure { provider } => configure_provider(provider),
             Operation::Places { action } => manage_places(action),
@@ -56,29 +57,32 @@ struct ForecastArgs {
     unit: UnitType,
 }
 
-fn configure_provider(prv: Provider) {
-    let mut config = WeatherConfig::get();
+fn configure_provider(prv: Provider) -> Result<()> {
+    let mut config = WeatherConfig::get()?;
     config.provider = Some(prv.clone());
-    config.save();
+    config.save()?;
 
     println!("Provider {} successfully configured!", prv);
+    Ok(())
 }
 
-fn manage_places(act: PlacesAction) {
-    let mut config = WeatherConfig::get();
+fn manage_places(act: PlacesAction) -> Result<()> {
+    let mut config = WeatherConfig::get()?;
 
     let places = match act {
         PlacesAction::GetAll => config.places,
         PlacesAction::Set(place) => {
+            place.coordinates.validate()?;
             config.places.replace(place);
-            config.save();
+            config.save()?;
 
             config.places
         }
         PlacesAction::Remove(tag) => {
-            let remove_place = config.place_by_tag(&tag).unwrap();
-            config.places.remove(&remove_place);
-            config.save();
+            if let Some(remove_place) = config.place_by_tag(&tag) {
+                config.places.remove(&remove_place);
+                config.save()?;
+            }
 
             config.places
         }
@@ -88,18 +92,20 @@ fn manage_places(act: PlacesAction) {
     for place in places {
         println!("{}", place);
     }
+
+    Ok(())
 }
 
-async fn get_forecast(args: ForecastArgs) {
-    let config = WeatherConfig::get();
+async fn get_forecast(args: ForecastArgs) -> Result<()> {
+    let config = WeatherConfig::get()?;
 
     if let Some(prv_type) = &config.provider {
         let provider: Box<dyn providers::Provider> = match prv_type {
             Provider::OpenWeather(creds) => {
-                Box::new(open_weather::OpenWeather::new(creds.key.to_owned()))
+                Box::new(open_weather::OpenWeather::new(creds.key.to_owned())?)
             }
             Provider::WeatherApi(creds) => {
-                Box::new(weather_api::WeatherApi::new(creds.key.to_owned()))
+                Box::new(weather_api::WeatherApi::new(creds.key.to_owned())?)
             }
         };
 
@@ -109,7 +115,7 @@ async fn get_forecast(args: ForecastArgs) {
         };
 
         if let Some(coords) = coords {
-            let weather = provider.get_forecast(coords, args.time, args.unit).await;
+            let weather = provider.get_forecast(coords, args.time, args.unit).await?;
             println!("Weather provider: {}", prv_type);
             match weather {
                 Weather::Current(current) => {
@@ -128,4 +134,6 @@ async fn get_forecast(args: ForecastArgs) {
             }
         }
     }
+
+    Ok(())
 }
