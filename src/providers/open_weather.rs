@@ -11,22 +11,18 @@ use super::Provider;
 
 #[derive(Deserialize, Debug)]
 struct CurrentWeather {
-    dt: i64,
     sunrise: Option<i64>,
     sunset: Option<i64>,
     temp: f32,
     feels_like: f32,
     pressure: f32,
     humidity: f32,
-    dew_point: f32,
     clouds: f32,
     uvi: f32,
     visibility: f32,
     wind_speed: f32,
-    wind_gust: Option<f32>,
     wind_deg: f32,
     rain: Option<Rain>,
-    snow: Option<Snow>,
     weather: Vec<WeatherCondition>,
 }
 
@@ -37,17 +33,8 @@ struct Rain {
 }
 
 #[derive(Deserialize, Debug)]
-struct Snow {
-    #[serde(rename = "1h")]
-    mm_h: f32,
-}
-
-#[derive(Deserialize, Debug)]
 struct WeatherCondition {
-    id: u32,
-    main: String,
     description: String,
-    icon: String,
 }
 
 #[derive(Deserialize, Debug)]
@@ -57,16 +44,12 @@ struct HourlyForecast {
     feels_like: f32,
     pressure: f32,
     humidity: f32,
-    dew_point: f32,
     uvi: f32,
     clouds: f32,
     visibility: f32,
     wind_speed: f32,
-    wind_gust: Option<f32>,
     wind_deg: f32,
-    pop: f32,
     rain: Option<Rain>,
-    snow: Option<Snow>,
     weather: Vec<WeatherCondition>,
 }
 
@@ -78,46 +61,24 @@ struct DailyForecast {
     moonrise: Option<i64>,
     moonset: Option<i64>,
     moon_phase: f32,
-    summary: String,
     temp: DailyTemperature,
-    feels_like: DailyFeelsLike,
     pressure: f32,
     humidity: f32,
-    dew_point: f32,
     wind_speed: f32,
-    wind_gust: Option<f32>,
-    wind_deg: f32,
     clouds: f32,
     uvi: f32,
-    pop: f32,
     rain: Option<f32>,
-    snow: Option<f32>,
     weather: Vec<WeatherCondition>,
 }
 
 #[derive(Deserialize, Debug)]
 struct DailyTemperature {
-    morn: f32,
-    day: f32,
-    eve: f32,
-    night: f32,
     min: f32,
     max: f32,
 }
 
 #[derive(Deserialize, Debug)]
-struct DailyFeelsLike {
-    morn: f32,
-    day: f32,
-    eve: f32,
-    night: f32,
-}
-
-#[derive(Deserialize, Debug)]
 struct WeatherData {
-    lat: f32,
-    lon: f32,
-    timezone: String,
     timezone_offset: u32,
     current: CurrentWeather,
     hourly: Vec<HourlyForecast>,
@@ -295,14 +256,12 @@ impl Provider for OpenWeather {
     }
 }
 
-fn datetime_to_str<'a>(dt: Option<i64>, offset: &FixedOffset, fmt: &'a str) -> Option<String> {
-    dt.map_or(None, |dt| {
-        Some(
-            DateTime::from_timestamp(dt, 0)
-                .unwrap_or_default()
-                .with_timezone(offset)
-                .format(fmt)
-                .to_string(),
-        )
+fn datetime_to_str(dt: Option<i64>, offset: &FixedOffset, fmt: &str) -> Option<String> {
+    dt.map(|dt| {
+        DateTime::from_timestamp(dt, 0)
+            .unwrap_or_default()
+            .with_timezone(offset)
+            .format(fmt)
+            .to_string()
     })
 }

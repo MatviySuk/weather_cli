@@ -4,22 +4,13 @@ use crate::weather::{Place, PlaceTag, Provider};
 use confy::{load, store};
 use serde_derive::{Deserialize, Serialize};
 
-const APP_NAME: &'static str = "weather";
-const CONFIG_NAME: &'static str = "weather_config";
+const APP_NAME: &str = "weather";
+const CONFIG_NAME: &str = "weather_config";
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Default, Debug)]
 pub struct WeatherConfig {
     pub provider: Option<Provider>,
     pub places: HashSet<Place>,
-}
-
-impl Default for WeatherConfig {
-    fn default() -> Self {
-        WeatherConfig {
-            provider: None,
-            places: HashSet::new(),
-        }
-    }
 }
 
 impl WeatherConfig {
@@ -32,9 +23,6 @@ impl WeatherConfig {
     }
 
     pub fn place_by_tag(&self, tag: &PlaceTag) -> Option<Place> {
-        self.places
-            .iter()
-            .find(|p| p.tag == *tag)
-            .cloned()
+        self.places.iter().find(|p| p.tag == *tag).cloned()
     }
 }

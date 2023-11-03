@@ -11,7 +11,6 @@ use super::Provider;
 
 #[derive(Deserialize, Debug)]
 pub struct WeatherData {
-    location: Location,
     current: Current,
     forecast: Forecast,
 }
@@ -113,7 +112,7 @@ impl WeatherData {
             .into_iter()
             .take(n_days)
             .map(|d| weather::DailyWeather {
-                date: d.date, 
+                date: d.date,
                 min_temp: match unit {
                     weather::UnitType::Metric => d.day.mintemp_c,
                     weather::UnitType::Imperial => d.day.mintemp_f,
@@ -136,7 +135,7 @@ impl WeatherData {
                     weather::UnitType::Metric => d.day.totalprecip_mm,
                     weather::UnitType::Imperial => d.day.totalprecip_in,
                 }),
-                clouds: None, 
+                clouds: None,
                 sunrise: Some(d.astro.sunrise),
                 sunset: Some(d.astro.sunset),
                 moonrise: Some(d.astro.moonrise),
@@ -149,31 +148,14 @@ impl WeatherData {
 }
 
 #[derive(Deserialize, Debug)]
-pub struct Location {
-    name: String,
-    region: String,
-    country: String,
-    lat: f32,
-    lon: f32,
-    tz_id: String,
-    localtime_epoch: u32,
-    localtime: String,
-}
-
-#[derive(Deserialize, Debug)]
 pub struct Current {
-    last_updated_epoch: u32,
-    last_updated: String,
     temp_c: f32,
     temp_f: f32,
-    is_day: u32,
     condition: Condition,
     wind_mph: f32,
     wind_kph: f32,
     wind_degree: u32,
-    wind_dir: String,
     pressure_mb: f32,
-    pressure_in: f32,
     precip_mm: f32,
     precip_in: f32,
     humidity: f32,
@@ -183,15 +165,11 @@ pub struct Current {
     vis_km: f32,
     vis_miles: f32,
     uv: f32,
-    gust_mph: f32,
-    gust_kph: f32,
 }
 
 #[derive(Deserialize, Debug)]
 pub struct Condition {
     text: String,
-    icon: String,
-    code: u32,
 }
 
 #[derive(Deserialize, Debug)]
@@ -202,7 +180,6 @@ pub struct Forecast {
 #[derive(Deserialize, Debug)]
 pub struct ForecastDay {
     date: String,
-    date_epoch: u32,
     day: Day,
     astro: Astro,
     hour: Vec<Hour>,
@@ -214,19 +191,11 @@ pub struct Day {
     maxtemp_f: f32,
     mintemp_c: f32,
     mintemp_f: f32,
-    avgtemp_c: f32,
-    avgtemp_f: f32,
     maxwind_mph: f32,
     maxwind_kph: f32,
     totalprecip_mm: f32,
     totalprecip_in: f32,
-    avgvis_km: f32,
-    avgvis_miles: f32,
     avghumidity: f32,
-    daily_will_it_rain: u32,
-    daily_chance_of_rain: u32,
-    daily_will_it_snow: u32,
-    daily_chance_of_snow: u32,
     condition: Condition,
     uv: f32,
 }
@@ -238,7 +207,6 @@ pub struct Astro {
     moonrise: String,
     moonset: String,
     moon_phase: String,
-    moon_illumination: f32,
 }
 
 #[derive(Deserialize, Debug)]
@@ -247,34 +215,19 @@ pub struct Hour {
     time: String,
     temp_c: f32,
     temp_f: f32,
-    is_day: u32,
     condition: Condition,
     wind_mph: f32,
     wind_kph: f32,
     wind_degree: u32,
-    wind_dir: String,
     pressure_mb: f32,
-    pressure_in: f32,
     precip_mm: f32,
     precip_in: f32,
     humidity: f32,
     cloud: f32,
     feelslike_c: f32,
     feelslike_f: f32,
-    windchill_c: f32,
-    windchill_f: f32,
-    heatindex_c: f32,
-    heatindex_f: f32,
-    dewpoint_c: f32,
-    dewpoint_f: f32,
-    will_it_rain: u32,
-    chance_of_rain: u32,
-    will_it_snow: u32,
-    chance_of_snow: u32,
     vis_km: f32,
     vis_miles: f32,
-    gust_mph: f32,
-    gust_kph: f32,
     uv: f32,
 }
 
@@ -335,7 +288,7 @@ impl Provider for WeatherApi {
             }
             weather::ForecastTime::Days3 => {
                 weather::Weather::Daily(weather_data.parse_to_days(3, unit))
-            },
+            }
             weather::ForecastTime::Days5 => {
                 weather::Weather::Daily(weather_data.parse_to_days(5, unit))
             }

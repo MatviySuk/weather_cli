@@ -37,62 +37,61 @@ impl fmt::Display for DailyWeather {
             UnitType::Metric => ("°C", "m/s", "km"),
             UnitType::Imperial => ("°F", "mph", "mi"),
         };
-        
-        write!(f, "Daily Weather for {}:\n", self.date)?;
-        write!(f, "Min Temp: {:.2}{}\n", self.min_temp, temp_unit)?;
-        write!(f, "Max Temp: {:.2}{}\n", self.max_temp, temp_unit)?;
-        
+
+        writeln!(f, "Daily Weather for {}:", self.date)?;
+        writeln!(f, "Min Temp: {:.2}{}", self.min_temp, temp_unit)?;
+        writeln!(f, "Max Temp: {:.2}{}", self.max_temp, temp_unit)?;
+
         if let Some(avg_temp) = self.avg_temp {
-            write!(f, "Avg Temp: {:.2}{}\n", avg_temp, temp_unit)?;
+            writeln!(f, "Avg Temp: {:.2}{}", avg_temp, temp_unit)?;
         }
-        
+
         if let Some(visibility) = self.visibility {
-            write!(f, "Visibility: {:.2} {}\n", visibility, vis_unit)?;
+            writeln!(f, "Visibility: {:.2} {}", visibility, vis_unit)?;
         }
-        
-        write!(f, "Humidity: {:.2}%\n", self.humidity)?;
-        
+
+        writeln!(f, "Humidity: {:.2}%", self.humidity)?;
+
         if let Some(pressure) = self.pressure {
-            write!(f, "Pressure: {:.2} hPa\n", pressure)?;
+            writeln!(f, "Pressure: {:.2} hPa", pressure)?;
         }
-        
-        write!(f, "Wind Speed: {:.2} {}\n", self.wind_speed, speed_unit)?;
-        write!(f, "UV Index: {:.2}\n", self.uvi)?;
-        
+
+        writeln!(f, "Wind Speed: {:.2} {}", self.wind_speed, speed_unit)?;
+        writeln!(f, "UV Index: {:.2}", self.uvi)?;
+
         if let Some(clouds) = self.clouds {
-            write!(f, "Clouds: {:.2}%\n", clouds)?;
+            writeln!(f, "Clouds: {:.2}%", clouds)?;
         }
-        
-        write!(f, "Condition: {}\n", self.condition)?;
-        
+
+        writeln!(f, "Condition: {}", self.condition)?;
+
         if let Some(precip) = self.precip {
-            write!(f, "Precipitation: {:.2} mm\n", precip)?;
+            writeln!(f, "Precipitation: {:.2} mm", precip)?;
         }
-        
+
         if let Some(sunrise) = &self.sunrise {
-            write!(f, "Sunrise: {}\n", sunrise)?;
+            writeln!(f, "Sunrise: {}", sunrise)?;
         }
-        
+
         if let Some(sunset) = &self.sunset {
-            write!(f, "Sunset: {}\n", sunset)?;
+            writeln!(f, "Sunset: {}", sunset)?;
         }
-        
+
         if let Some(moonrise) = &self.moonrise {
-            write!(f, "Moonrise: {}\n", moonrise)?;
+            writeln!(f, "Moonrise: {}", moonrise)?;
         }
-        
+
         if let Some(moonset) = &self.moonset {
-            write!(f, "Moonset: {}\n", moonset)?;
+            writeln!(f, "Moonset: {}", moonset)?;
         }
-        
+
         if let Some(moon_phase) = self.moon_phase.as_deref() {
-            write!(f, "Moon Phase: {}\n", moon_phase)?;
+            writeln!(f, "Moon Phase: {}", moon_phase)?;
         }
 
         Ok(())
     }
 }
-
 
 #[derive(Debug)]
 pub struct HourWeather {
@@ -118,24 +117,24 @@ impl fmt::Display for HourWeather {
             UnitType::Imperial => ("°F", "mph", "mi"),
         };
 
-        write!(f, "Time: {}\n", self.time)?;
-        write!(f, "Temperature: {:.2} {}\n", self.temp, temp_unit)?;
-        write!(f, "Feels Like: {:.2} {}\n", self.feels_like, temp_unit)?;
-        write!(f, "Visibility: {:.2} {}\n", self.visibility, vis_unit)?;
-        write!(f, "Clouds: {:.2}%\n", self.clouds)?;
-        write!(f, "Humidity: {:.2}%\n", self.humidity)?;
-        write!(f, "Pressure: {:.2} hPa\n", self.pressure)?;
-        write!(f, "Wind Speed: {:.2} {}\n", self.wind_speed, speed_unit)?;
-        write!(f, "Wind Direction: {}\n", cardinal_dir_from(self.wind_deg))?;
-        write!(f, "UV Index: {:.2}\n", self.uvi)?;
-        write!(f, "Condition: {}\n", self.condition)?;
+        writeln!(f, "Time: {}", self.time)?;
+        writeln!(f, "Temperature: {:.2} {}", self.temp, temp_unit)?;
+        writeln!(f, "Feels Like: {:.2} {}", self.feels_like, temp_unit)?;
+        writeln!(f, "Visibility: {:.2} {}", self.visibility, vis_unit)?;
+        writeln!(f, "Clouds: {:.2}%", self.clouds)?;
+        writeln!(f, "Humidity: {:.2}%", self.humidity)?;
+        writeln!(f, "Pressure: {:.2} hPa", self.pressure)?;
+        writeln!(f, "Wind Speed: {:.2} {}", self.wind_speed, speed_unit)?;
+        writeln!(f, "Wind Direction: {}", cardinal_dir_from(self.wind_deg))?;
+        writeln!(f, "UV Index: {:.2}", self.uvi)?;
+        writeln!(f, "Condition: {}", self.condition)?;
 
         if let Some(precip) = self.precip {
             let precip_unit = match self.unit {
                 UnitType::Metric => "mm",
                 UnitType::Imperial => "inches",
             };
-            write!(f, "Precipitation: {:.2} {}\n", precip, precip_unit)?;
+            writeln!(f, "Precipitation: {:.2} {}", precip, precip_unit)?;
         }
 
         Ok(())
@@ -167,33 +166,33 @@ impl fmt::Display for CurrentWeather {
             UnitType::Imperial => ("°F", "mph", "mi"),
         };
 
-        write!(f, "Current Weather:\n")?;
-        write!(f, "Temperature: {:.2} {}\n", self.temp, temp_unit)?;
-        write!(f, "Feels Like: {:.2} {}\n", self.feels_like, temp_unit)?;
-        write!(f, "Visibility: {:.2} {}\n", self.visibility, vis_unit)?;
-        write!(f, "Clouds: {:.2}%\n", self.clouds)?;
-        write!(f, "Humidity: {:.2}%\n", self.humidity)?;
-        write!(f, "Pressure: {:.2} hPa\n", self.pressure)?;
-        write!(f, "Wind Speed: {:.2} {}\n", self.wind_speed, speed_unit)?;
-        write!(f, "Wind Direction: {}\n", cardinal_dir_from(self.wind_deg))?;
-        write!(f, "UV Index: {:.2}\n", self.uvi)?;
+        writeln!(f, "Current Weather:")?;
+        writeln!(f, "Temperature: {:.2} {}", self.temp, temp_unit)?;
+        writeln!(f, "Feels Like: {:.2} {}", self.feels_like, temp_unit)?;
+        writeln!(f, "Visibility: {:.2} {}", self.visibility, vis_unit)?;
+        writeln!(f, "Clouds: {:.2}%", self.clouds)?;
+        writeln!(f, "Humidity: {:.2}%", self.humidity)?;
+        writeln!(f, "Pressure: {:.2} hPa", self.pressure)?;
+        writeln!(f, "Wind Speed: {:.2} {}", self.wind_speed, speed_unit)?;
+        writeln!(f, "Wind Direction: {}", cardinal_dir_from(self.wind_deg))?;
+        writeln!(f, "UV Index: {:.2}", self.uvi)?;
 
         if let Some(sunrise) = &self.sunrise {
-            write!(f, "Sunrise: {}\n", sunrise)?;
+            writeln!(f, "Sunrise: {}", sunrise)?;
         }
 
         if let Some(sunset) = &self.sunset {
-            write!(f, "Sunset: {}\n", sunset)?;
+            writeln!(f, "Sunset: {}", sunset)?;
         }
 
-        write!(f, "Condition: {}\n", self.condition)?;
+        writeln!(f, "Condition: {}", self.condition)?;
 
         if let Some(precip) = self.precip {
             let precip_unit = match self.unit {
                 UnitType::Metric => "mm",
                 UnitType::Imperial => "inches",
             };
-            write!(f, "Precipitation: {:.2} {}\n", precip, precip_unit)?;
+            writeln!(f, "Precipitation: {:.2} {}", precip, precip_unit)?;
         }
 
         Ok(())
@@ -246,10 +245,10 @@ pub struct Place {
 
 impl fmt::Display for Place {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Place: {}\n", self.tag.tag)?;
-        write!(
+        writeln!(f, "Place: {}", self.tag.tag)?;
+        writeln!(
             f,
-            "Coordinates: (lat: {}, lon: {})\n",
+            "Coordinates: (lat: {}, lon: {})",
             self.coordinates.lat, self.coordinates.lon
         )
     }

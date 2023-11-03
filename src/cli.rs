@@ -114,7 +114,7 @@ async fn get_forecast(args: ForecastArgs) {
             match weather {
                 Weather::Current(current) => {
                     println!("{}", current);
-                },
+                }
                 Weather::Today(hours) => {
                     for hour in hours {
                         println!("{}\n", hour);
