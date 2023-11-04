@@ -2,7 +2,14 @@
 name = "weather"
 version = "0.1.0"
 edition = "2021"
-authors = ["enwilco"]
+authors = ["enwilco <enwilco@gmail.com"]
+license = "MIT OR Apache-2.0"
+description = "CLI tool for fast access to weather forecasts"
+readme = "README.md"
+homepage = "https://github.com/MatviySuk/weather_cli"
+repository = "https://github.com/MatviySuk/weather_cli"
+keywords = ["cli", "weather"]
+categories = ["command-line-utilities"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

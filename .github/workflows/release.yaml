@@ -1,0 +1,31 @@
+name: Compile binaries for release
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  release:
+    name: release ${{ matrix.target }} 
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-pc-windows-gnu
+            archive: zip
+          - target: x86_64-unknown-linux-musl
+            archive: tar.gz
+          - target: x86_64-apple-darwin
+            archive: zip
+    steps:
+      - uses: actions/checkout@master
+      - name: Compile and release
+        uses: rust-build/rust-build.action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.AUTH_TOKEN }}
+        with:
+          RUSTTARGET: ${{ matrix.target }}
+          EXTRA_FILES: "README.md LICENSE-MIT LICENSE-APACHE"
+          SRC_DIR: ""
+          ARCHIVE_TYPES: ${{ matrix.archive }}
