@@ -10,6 +10,7 @@ pub enum AppError {
     UrlParse(UrlError),
     TimeParse(String),
     Coordinates(CoordinatesError),
+    EmptyProvider,
 }
 
 #[derive(Debug)]
@@ -28,6 +29,10 @@ impl fmt::Display for AppError {
             AppError::Coordinates(e) => {
                 writeln!(f, "Provided coordinate is incorrent, error: {}", e)
             }
+            AppError::EmptyProvider => writeln!(
+                f,
+                "Weather provider is not configured! Call --help to find instructions."
+            ),
         }
     }
 }

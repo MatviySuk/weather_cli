@@ -2,6 +2,7 @@ use clap::{Args, Parser, Subcommand};
 
 use crate::{
     config::WeatherConfig,
+    errors::AppError,
     providers::{self, open_weather, weather_api},
     weather::*,
     Result,
@@ -98,38 +99,37 @@ fn manage_places(act: PlacesAction) -> Result<()> {
 
 async fn get_forecast(args: ForecastArgs) -> Result<()> {
     let config = WeatherConfig::get()?;
+    let prv_type = config.provider.as_ref().ok_or(AppError::EmptyProvider)?;
 
-    if let Some(prv_type) = &config.provider {
-        let provider: Box<dyn providers::Provider> = match prv_type {
-            Provider::OpenWeather(creds) => {
-                Box::new(open_weather::OpenWeather::new(creds.key.to_owned())?)
+    let provider: Box<dyn providers::Provider> = match prv_type {
+        Provider::OpenWeather(creds) => {
+            Box::new(open_weather::OpenWeather::new(creds.key.to_owned())?)
+        }
+        Provider::WeatherApi(creds) => {
+            Box::new(weather_api::WeatherApi::new(creds.key.to_owned())?)
+        }
+    };
+
+    let coords = match args.location {
+        Location::Coordinates(coords) => Some(coords),
+        Location::Place(tag) => config.place_by_tag(&tag).map(|p| p.coordinates),
+    };
+
+    if let Some(coords) = coords {
+        let weather = provider.get_forecast(coords, args.time, args.unit).await?;
+        println!("Weather provider: {}", prv_type);
+        match weather {
+            Weather::Current(current) => {
+                println!("{}", current);
             }
-            Provider::WeatherApi(creds) => {
-                Box::new(weather_api::WeatherApi::new(creds.key.to_owned())?)
+            Weather::Today(hours) => {
+                for hour in hours {
+                    println!("{}\n", hour);
+                }
             }
-        };
-
-        let coords = match args.location {
-            Location::Coordinates(coords) => Some(coords),
-            Location::Place(tag) => config.place_by_tag(&tag).map(|p| p.coordinates),
-        };
-
-        if let Some(coords) = coords {
-            let weather = provider.get_forecast(coords, args.time, args.unit).await?;
-            println!("Weather provider: {}", prv_type);
-            match weather {
-                Weather::Current(current) => {
-                    println!("{}", current);
-                }
-                Weather::Today(hours) => {
-                    for hour in hours {
-                        println!("{}\n", hour);
-                    }
-                }
-                Weather::Daily(days) => {
-                    for day in days {
-                        println!("{}\n", day);
-                    }
+            Weather::Daily(days) => {
+                for day in days {
+                    println!("{}\n", day);
                 }
             }
         }
