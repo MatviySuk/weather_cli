@@ -5,6 +5,12 @@ on:
     branches: ["main", "develop"]
   pull_request:
     branches: ["main"]
+    types: [ opened, synchronize, reopened ]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: --deny warnings -Cdebuginfo=1
+  RUSTDOCFLAGS: --deny warnings
 
 jobs:
   test:
@@ -29,11 +35,14 @@ jobs:
           toolchain: stable
           components: rustfmt, clippy
 
-      - name: Lint
-        run: |
-          cargo fmt --all -- --check
-          cargo clippy --workspace --all-targets --all-features --locked
+      - name: Build
+        run: cargo build
 
-      - name: Build and test code
-        run: |
-          cargo test --verbose
+      - name: Format
+        run: cargo fmt --all -- --check
+
+      - name: Lint
+        run: cargo clippy --workspace --all-targets --all-features --locked
+
+      - name: Test
+        run: cargo test --verbose
